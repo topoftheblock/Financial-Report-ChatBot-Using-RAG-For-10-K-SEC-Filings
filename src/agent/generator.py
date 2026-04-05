@@ -5,7 +5,7 @@ from src.agent.tools import get_financial_tools
 from src.agent.prompt import get_agent_prompt
 
 class FinancialRAGAgent:
-    def __init__(self, model_name: str = "gpt-5-mini", temperature: float = 0.0):
+    def __init__(self, model_name: str = "gpt-4o-mini", temperature: float = 0.0):
         """
         Initializes the Financial Agent Executor.
         Temperature is set to 0.0 to ensure deterministic, factual responses.
