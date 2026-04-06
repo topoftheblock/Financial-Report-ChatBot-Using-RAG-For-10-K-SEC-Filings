@@ -16,13 +16,40 @@ Take a deep breath and think step-by-step. Let's provide accurate financial anal
 """
 
 def get_agent_prompt() -> ChatPromptTemplate:
-    """Returns the formatted prompt template for the tool-calling agent."""
+    """Returns the formatted prompt template for the tool-calling agent (legacy executor)."""
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", SYSTEM_INSTRUCTIONS),
             ("user", "{input}"),
-            # This placeholder allows the agent to append its scratchpad (tool calls and results)
             MessagesPlaceholder(variable_name="agent_scratchpad"), 
         ]
     )
     return prompt
+
+# --- LANGGRAPH PROMPTS ---
+
+def get_orchestrator_prompt() -> str:
+    return SYSTEM_INSTRUCTIONS
+
+def get_conversation_summary_prompt() -> str:
+    return "Summarize the following conversation history briefly, maintaining key financial context."
+
+def get_rewrite_query_prompt() -> str:
+    return """Analyze the user query and context. 
+If the question is clear, extract it as a list of standalone questions. 
+If it is ambiguous, state that clarification is needed."""
+
+def get_aggregation_prompt() -> str:
+    return """You are synthesizing multiple financial answers. 
+Combine the retrieved answers into a single, cohesive, and professional response that directly answers the user's original query. 
+Ensure you cite the sources (Ticker, Year, Document) provided in the individual answers."""
+
+def get_fallback_response_prompt() -> str:
+    return """You have reached the maximum allowed iterations or tool calls. 
+Use ONLY the retrieved data provided below to generate the best possible answer to the user query.
+If the provided data does not contain the answer, state that explicitly."""
+
+def get_context_compression_prompt() -> str:
+    return """Compress the following conversation into a concise summary. 
+Preserve ALL critical financial data points, facts, and retrieved metrics. 
+Remove redundant tool descriptions but keep the core findings."""
