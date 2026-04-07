@@ -1,17 +1,18 @@
 import os
+from dotenv import load_dotenv  # Add this import
+
+# Load the environment variables from the .env file BEFORE doing anything else
+load_dotenv() 
+
 from typing import Literal, Set
 from langgraph.types import Send, Command
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, RemoveMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
 # Import state models and tools
-from src.agent.state_data_model import State, AgentState, QueryAnalysis
+from src.agent.state import State, AgentState, QueryAnalysis
 from src.agent.tools import get_financial_tools
-from src.agent.prompt import (
-    get_conversation_summary_prompt, get_rewrite_query_prompt,
-    get_aggregation_prompt, get_orchestrator_prompt,
-    get_fallback_response_prompt, get_context_compression_prompt
-)
+
 
 # Constants for the graph
 MAX_ITERATIONS = 5

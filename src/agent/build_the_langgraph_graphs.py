@@ -6,8 +6,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from src.agent.tools import search_financial_tables, search_unstructured_text, get_financial_tools
 
 # 2. Import state models
-from src.agent.state_data_model import State, AgentState
-
+from src.agent.state import State, AgentState
 # 3. Import all graph nodes and edges
 from src.agent.main_graph_nodes_and_edges import (
     orchestrator,
