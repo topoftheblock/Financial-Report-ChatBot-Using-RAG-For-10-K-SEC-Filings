@@ -17,6 +17,9 @@ import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup, NavigableString
 
+from openai import OpenAI
+import time
+
 # %% Macros
 BASE_DIR = "C:/Users/patri/Desktop/Financial-Report-ChatBot-Using-RAG/"
 
@@ -368,6 +371,40 @@ def _process_table(table):
         return fb if fb.strip() else None
     
     
+# ── Table Summary ──────────────────────────────────────────────────────────
+client = OpenAI()
+
+# ── LLM Table Summarization ───────────────────────────────────────────────────
+def _summarize_table_with_llm(table_md: str) -> str:
+    """
+    Passes the markdown table to a cheap LLM to generate a brief, 
+    search-optimized heading and summary.
+    """
+    # Prevent sending empty or tiny tables (like formatting artifacts) to the LLM
+    if not table_md or len(table_md) < 100:
+        return ""
+
+    prompt = (
+        "You are a financial data assistant. Below is a markdown table extracted from an SEC 10-K report. "
+        "Provide a concise, 1-to-2 sentence summary of what financial data this table contains. "
+        "Do not include the data itself, just describe the table's purpose and contents. "
+        "Start directly with the summary.\n\n"
+        f"Table:\n{table_md}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5-nano", 
+            temperature=0.0,
+            max_tokens=100,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"LLM Summarization failed: {e}")
+        return ""
+    
+    
 # ── Main parser ───────────────────────────────────────────────────────────────
 def parse_10k_html(file_path: str, output_path: str) -> str:
     """
@@ -407,7 +444,21 @@ def parse_10k_html(file_path: str, output_path: str) -> str:
     for table in soup.find_all('table'):
         md = _process_table(table)
         if md:
-            table.replace_with(NavigableString(f'\n\n{md}\n\n'))
+            # Generate the summary using our new LLM function
+            summary = _summarize_table_with_llm(md)
+                    
+            if summary:
+                # Combine the LLM summary as a bolded heading right above the table
+                final_block = f'\n\n**Table Context:** {summary}\n\n{md}\n\n'
+            else:
+                # Fallback if the LLM fails or the table is too small
+                final_block = f'\n\n{md}\n\n'
+                        
+            table.replace_with(NavigableString(final_block))
+            
+            # Optional: Add a tiny sleep to avoid hitting API rate limits 
+            # if the 10-K has dozens of tables.
+            time.sleep(0.1) 
         else:
             table.decompose()
  
