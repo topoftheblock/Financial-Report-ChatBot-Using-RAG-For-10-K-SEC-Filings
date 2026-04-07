@@ -24,7 +24,14 @@ import time
 BASE_DIR = "C:/Users/patri/Desktop/Financial-Report-ChatBot-Using-RAG/"
 
 # %% Parser
- 
+import os
+from dotenv import load_dotenv
+
+# Load the .env file explicitly
+load_dotenv()
+
+from openai import OpenAI
+client = OpenAI()
 # ── Regex patterns ────────────────────────────────────────────────────────────
 _PART_RE = re.compile(r'^PART\s+(I{1,3}V?|IV)$',   re.IGNORECASE)
 _ITEM_RE = re.compile(r'^Item\s+\d+[A-C]?\.\s+\S', re.IGNORECASE)
@@ -103,7 +110,7 @@ def _process_table(table):
         # STEP 1A: PARSE & INITIAL CLEANUP
         # ---------------------------------------------------------
         # Use pandas to parse the HTML table
-        df_list = pd.read_html(str(table))
+        df_list = pd.read_html(io.StringIO(str(table)))
         if df_list:
             df = df_list[0]
             
@@ -393,17 +400,17 @@ def _summarize_table_with_llm(table_md: str) -> str:
     )
 
     try:
+        # EXACT FIX HERE: Ensure model, temperature, max_completion_tokens, and messages are all present
         response = client.chat.completions.create(
-            model="gpt-5-nano", 
+            model="gpt-4o-mini", 
             temperature=0.0,
-            max_tokens=100,
+            max_completion_tokens=100,
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"LLM Summarization failed: {e}")
         return ""
-    
     
 # ── Main parser ───────────────────────────────────────────────────────────────
 def parse_10k_html(file_path: str, output_path: str) -> str:

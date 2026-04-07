@@ -1,34 +1,14 @@
 from langgraph.graph import MessagesState
-from pydantic import BaseModel, Field
-from typing import List, Annotated, Set
-import operator
+from typing import Annotated, List
 
-def accumulate_or_reset(existing: List[dict], new: List[dict]) -> List[dict]:
-    if new and any(item.get('__reset__') for item in new):
-        return []
+def append_strings(existing: List[str], new: List[str]) -> List[str]:
     return existing + new
 
-def set_union(a: Set[str], b: Set[str]) -> Set[str]:
-    return a | b
-
-class State(MessagesState):
-    questionIsClear: bool = False
-    conversation_summary: str = ""
-    originalQuery: str = ""
-    rewrittenQuestions: List[str] = []
-    agent_answers: Annotated[List[dict], accumulate_or_reset] = []
-
 class AgentState(MessagesState):
-    tool_call_count: Annotated[int, operator.add] = 0
-    iteration_count: Annotated[int, operator.add] = 0
-    question: str = ""
-    question_index: int = 0
-    context_summary: str = ""
-    retrieval_keys: Annotated[Set[str], set_union] = set()
-    final_answer: str = ""
-    agent_answers: List[dict] = []
-
-class QueryAnalysis(BaseModel):
-    is_clear: bool = Field(description="Indicates if the user's question is clear and answerable.")
-    questions: List[str] = Field(description="List of rewritten, self-contained questions.")
-    clarification_needed: str = Field(description="Explanation if the question is unclear.")
+    current_plan: str
+    retrieved_context: Annotated[List[str], append_strings]
+    calculation_results: Annotated[List[str], append_strings]
+    final_answer: str
+    needs_rework: bool
+    iteration_count: int
+    reviewer_feedback: str

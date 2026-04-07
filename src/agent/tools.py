@@ -1,104 +1,73 @@
 import os
 import chromadb
-from typing import Optional, Dict, Any
+import pandas as pd
+import io
+import re
 from langchain.tools import tool
 from langchain_experimental.tools.python.tool import PythonAstREPLTool
-from pydantic import BaseModel, Field
 
-# Ensure we point to the exact same ChromaDB path built by the chunker
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "chroma_financial_db")
 COLLECTION_NAME = "financial_statements"
 
 def perform_metadata_search(query: str, filters: dict, n_results: int = 5) -> str:
-    """Helper function to execute queries against ChromaDB with robust post-filtering"""
     try:
         chroma_client = chromadb.PersistentClient(path=DB_PATH)
         collection = chroma_client.get_collection(name=COLLECTION_NAME)
         
-        # 1. Pre-filter: Only pass the 'ticker' to ChromaDB to completely avoid the $and syntax bug
-        chroma_filter = {}
-        if "ticker" in filters:
-            chroma_filter = {"ticker": filters["ticker"]}
-            
-        # 2. Fetch a larger pool of results to ensure we have enough after Python filtering
-        results = collection.query(
-            query_texts=[query],
-            n_results=30,
-            where=chroma_filter if chroma_filter else None
-        )
+        chroma_filter = {"ticker": filters["ticker"]} if "ticker" in filters else None
+        results = collection.query(query_texts=[query], n_results=30, where=chroma_filter)
         
         if not results['documents'] or not results['documents'][0]:
-            return "No financial documents found matching the query."
+            return "No documents found."
             
-        # 3. Post-filter in Python: Match exact year and document type
         valid_chunks = []
         for i in range(len(results['documents'][0])):
             meta = results['metadatas'][0][i]
             chunk = results['documents'][0][i]
             
-            # Check if this chunk matches ALL requested filters
-            match = True
-            for k, v in filters.items():
-                if meta.get(k) != v:
-                    match = False
-                    break
-                    
-            if match:
+            if all(meta.get(k) == v for k, v in filters.items()):
                 valid_chunks.append(chunk)
-                if len(valid_chunks) == n_results:
-                    break
+                if len(valid_chunks) == n_results: break
                     
-        if not valid_chunks:
-            return f"No financial documents found matching the exact filters: {filters}"
-            
-        return "\n\n---\n\n".join(valid_chunks)
-        
+        return "\n\n---\n\n".join(valid_chunks) if valid_chunks else "No exact matches."
     except Exception as e:
-        return f"Error connecting to database: {str(e)}"
+        return f"Database error: {str(e)}"
 
-class TableSearchInput(BaseModel):
-    query: str = Field(description="The specific financial metric or table sought (e.g., 'Total Revenue', 'Operating Margins').")
-    company_ticker: str = Field(description="The stock ticker of the company (e.g., 'AAPL', 'MSFT').")
-    year: int = Field(description="The 4-digit financial year (e.g., 2023).")
-    document_type: str = Field(description="The type of SEC filing (e.g., '10-K', '10-Q'). Default is '10-K'.", default="10-K")
+@tool
+def fetch_sec_section(company_ticker: str, year: int, section_name: str) -> str:
+    """Fetches an exact SEC Markdown section by name (e.g., 'Item 3' for Legal, 'Item 7' for MD&A)."""
+    filters = {"ticker": company_ticker.upper(), "year": year, "Item": section_name}
+    return perform_metadata_search(query="financials", filters=filters, n_results=3)
 
-@tool("search_financial_tables", args_schema=TableSearchInput)
-def search_financial_tables(query: str, company_ticker: str, year: int, document_type: str = "10-K") -> str:
-    """
-    Search strictly within financial tables and numerical data. 
-    Requires strict metadata filtering to prevent retrieving the wrong year or company.
-    """
-    # Flat dictionary for robust Python post-filtering
-    filters = {
-        "ticker": company_ticker.upper(),
-        "year": year,
-        "document_type": document_type.upper()
-    }
+@tool
+def search_unstructured_text(query: str, company_ticker: str, year: int) -> str:
+    """Performs semantic search over the 10-K for qualitative questions (e.g., legal, risks, business)."""
+    filters = {"ticker": company_ticker.upper(), "year": year}
     return perform_metadata_search(query=query, filters=filters, n_results=5)
 
-@tool("search_unstructured_text")
-def search_unstructured_text(query: str, company_ticker: Optional[str] = None) -> str:
-    """
-    Perform a semantic hybrid search over unstructured text like MD&A, Risk Factors, and Business Summaries.
-    Use this for qualitative questions.
-    """
-    filters = {}
-    if company_ticker:
-        filters["ticker"] = company_ticker.upper()
+@tool
+def extract_and_query_markdown_table(markdown_table: str, query_code: str) -> str:
+    """Parses a Markdown table into Pandas and runs query_code."""
+    try:
+        cleaned = re.sub(r'(^\|)|(\|$)', '', markdown_table, flags=re.MULTILINE)
+        lines = [line for line in cleaned.split('\n') if not re.match(r'^[\s\-|:]+$', line)]
+        df = pd.read_csv(io.StringIO('\n'.join(lines)), sep='|')
+        df.columns = df.columns.str.strip()
         
-    return perform_metadata_search(query=query, filters=filters, n_results=5)
+        local_env = {"df": df, "pd": pd}
+        exec(f"result = {query_code}", local_env)
+        return f"Table Query Result: {local_env.get('result', 'Success')}"
+    except Exception as e:
+        return f"Table error: {e}"
 
-def get_financial_tools() -> list:
-    """Returns the list of tools available to the agent."""
-    
-    calculator_tool = PythonAstREPLTool(
-        name="python_calculator",
-        description="A Python shell. Use this to execute python commands to calculate math, percentages, or differences. Input should be a valid python command. Print the final answer."
-    )
-    
-    return [
-        search_financial_tables,
-        search_unstructured_text,
-        calculator_tool
-    ]
+python_calculator = PythonAstREPLTool(
+    name="python_calculator",
+    description="Python shell. Use this to execute math."
+)
+
+def get_researcher_tools(): 
+    return [fetch_sec_section, search_unstructured_text]
+
+def get_quant_tools(): 
+    return [extract_and_query_markdown_table, python_calculator]
