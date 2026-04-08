@@ -76,9 +76,25 @@ When a user submits a prompt, the agent enters a reasoning loop and will not ret
 - **Zero hallucination arithmetic** — By forcing the LLM to use `python_calculator` for math, the risk of the model guessing numbers is eliminated entirely.
 - **Deterministic filtering** — Because `semantic_financial_search` accepts `company_ticker` and `year` as explicit arguments, the LLM natively pre-filters the vector database. A search for Apple will structurally ignore all other filings, ensuring high-fidelity retrieval.
 - **Full transparency** — The Streamlit UI exposes the exact internal `Thought → Action → Observation` loop, making it straightforward to debug any incorrect answers.
-
 ---
 
+## Demo
+
+Here is a look at the Financial RAG Agent in action:
+
+### 1. Conversational Interface & Contextual Citations
+![Chat Interface](demo1.png)
+*The agent synthesizes complex financial queries into clear, professional bullet points. It strictly cites its sources directly from the retrieved SEC filings using inline metadata (Ticker, Year, Section).*
+
+### 2. Transparent Agent Reasoning
+![Agent Thoughts](demo2.png)
+*Users can expand the "View Agent Thought Process" tab to see exactly how the LangChain agent is thinking. It displays the internal reasoning, the tools called (e.g., `semantic_financial_search`, `python_calculator`), and the raw data retrieved from the vector database before it generates the final answer.*
+
+### 3. Sidebar Controls & Architecture
+![Sidebar Architecture](demo3.png)
+*The sidebar provides a quick overview of the agent's capabilities, controls to clear the chat history, and an interactive toggle to view the system's underlying LangChain Tool-Calling architecture.*
+
+---
 ## Directory Structure
 
 ```text
