@@ -239,10 +239,11 @@ python -m pytest src/tests/test_chunker.py
 # Test database retrieval performance
 python -m pytest src/tests/test_retrieval_performance.py
 ```
-CI/CD Pipeline
+
+## CI/CD Pipeline
 The repository utilizes GitHub Actions to automatically enforce code quality, run unit tests, and maintain pipeline integrity.
 
-Continuous Integration (CI):
+# Continuous Integration (CI):
 Whenever code is pushed to the main branch or a Pull Request is opened, the CI pipeline triggers the following automated jobs:
 
 Environment Setup: Initializes Python 3.10 and installs dependencies from requirements.txt.
@@ -257,5 +258,5 @@ Precision of the LangChain chunking mechanisms.
 
 Response accuracy of ChromaDB retrievals.
 
-Continuous Deployment (CD) with Docker:
+# Continuous Deployment (CD) with Docker:
 Because the application is packaged via Docker and docker-compose.yml, it is easily deployable to major cloud providers (e.g., AWS ECS, Google Cloud Run) by directly pulling from the main branch and spinning up the image. State (like the ChromaDB vector embeddings) is mounted via volume maps to ensure restarts never result in data loss.
