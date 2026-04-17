@@ -1,1 +1,23 @@
+# Environments
 .env*
+venv/
+env/
+
+# Python Cache and Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database & Vector Store
+chroma_financial_db/
+*.sqlite3
+
+# Testing
+.pytest_cache/
+.coverage
+
+# IDEs and OS specifics
+.idea/
+.vscode/
+.DS_Store
